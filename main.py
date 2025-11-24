@@ -79,14 +79,14 @@ def load_data():
     
     # Download apenas se necessário
     data_path = "./data/binance-BTCUSDT-1h.pkl"
-    if not os.path.exists(data_path):
-        download(
-            exchange_names=["binance"],
-            symbols=["BTC/USDT"],
-            timeframe="1h",
-            dir="data",
-            since=datetime.datetime(year=2020, month=1, day=1),
-        )
+    download(
+        exchange_names=["binance"],
+        symbols=["BTC/USDT"],
+        timeframe="1h",
+        dir="data",
+        since=datetime.datetime(year=2022, month=1, day=1),
+        until = datetime.datetime(year=2025,month=11,day=1),
+    )
     
     df = pd.read_pickle(data_path)
     
