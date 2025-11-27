@@ -78,13 +78,13 @@ def load_data():
     os.makedirs("data", exist_ok=True)
     
     # Download apenas se necessário
-    data_path = "./data/binance-BTCUSDT-1h.pkl"
+    data_path = "./data/binance-BNBUSDT-1d.pkl"
     download(
         exchange_names=["binance"],
-        symbols=["BTC/USDT"],
-        timeframe="1h",
+        symbols=["BNB/USDT"],
+        timeframe="1d",
         dir="data",
-        since=datetime.datetime(year=2022, month=1, day=1),
+        since=datetime.datetime(year=2020, month=1, day=1),
         until = datetime.datetime(year=2025,month=11,day=1),
     )
     
@@ -376,6 +376,139 @@ class SarsaAgent:
     
     def _choose_action(self, estado, env):
         return politica_epsilon_greedy(estado, self.epsilon, self.Q, env)
+    
+class QLearningAgent:
+    def __init__(self, alpha=0.1, gamma=0.99, epsilon=0.1, epsilon_decay=0.995, min_epsilon=0.01):
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.min_epsilon = min_epsilon
+        self.Q = {}
+        self.V = {}
+        self.episode_returns = []
+        
+    def run(self, env, num_episodes):
+        print("=== Q-LEARNING ===")
+        
+        for episode in range(num_episodes):
+            estado, info = env.reset()
+            estado_discreto = discretize(estado)
+            
+            done = False
+            episode_return = 0
+            
+            while not done:
+                acao = self._choose_action(estado, env)
+                proximo_estado, recompensa, terminated, truncated, info = env.step(acao)
+                proximo_estado_discreto = discretize(proximo_estado)
+                done = terminated or truncated
+                
+                # Atualização Q-Learning
+                estado_acao_atual = (estado_discreto, acao)
+                q_atual = self.Q.get(estado_acao_atual, 0)
+                
+                # Encontra o máximo Q para o próximo estado
+                max_q_proximo = max([
+                    self.Q.get((proximo_estado_discreto, a), 0) 
+                    for a in range(env.action_space.n)
+                ])
+                
+                self.Q[estado_acao_atual] = q_atual + self.alpha * (
+                    recompensa + self.gamma * max_q_proximo - q_atual
+                )
+                
+                # Atualiza V(s)
+                self.V[estado_discreto] = max([
+                    self.Q.get((estado_discreto, a), 0) 
+                    for a in range(env.action_space.n)
+                ])
+                
+                # Transição
+                estado = proximo_estado
+                estado_discreto = proximo_estado_discreto
+                
+                episode_return += recompensa
+            
+            self.episode_returns.append(episode_return)
+            self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
+            
+            if (episode + 1) % 10 == 0:
+                print(f"Episódio {episode + 1}/{num_episodes}, "
+                      f"Retorno: {episode_return:.4f}, "
+                      f"Epsilon: {self.epsilon:.4f}")
+        
+        return self.V, self.Q, self.episode_returns
+    
+    def _choose_action(self, estado, env):
+        return politica_epsilon_greedy(estado, self.epsilon, self.Q, env)
+
+class DQNAgent:
+    def __init__(self, alpha=0.001, gamma=0.99, epsilon=0.1, epsilon_decay=0.995, min_epsilon=0.01):
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.min_epsilon = min_epsilon
+        self.Q = {}
+        self.V = {}
+        self.episode_returns = []
+        
+    def run(self, env, num_episodes):
+        print("=== DQN (SIMPLIFICADO) ===")
+        
+        for episode in range(num_episodes):
+            estado, info = env.reset()
+            estado_discreto = discretize(estado)
+            
+            done = False
+            episode_return = 0
+            
+            while not done:
+                acao = self._choose_action(estado, env)
+                proximo_estado, recompensa, terminated, truncated, info = env.step(acao)
+                proximo_estado_discreto = discretize(proximo_estado)
+                done = terminated or truncated
+                
+                # Atualização DQN (versão simplificada com tabela Q)
+                estado_acao_atual = (estado_discreto, acao)
+                q_atual = self.Q.get(estado_acao_atual, 0)
+                
+                # Encontra o máximo Q para o próximo estado
+                max_q_proximo = max([
+                    self.Q.get((proximo_estado_discreto, a), 0) 
+                    for a in range(env.action_space.n)
+                ])
+                
+                # Target DQN
+                target = recompensa + self.gamma * max_q_proximo
+                
+                self.Q[estado_acao_atual] = q_atual + self.alpha * (target - q_atual)
+                
+                # Atualiza V(s)
+                self.V[estado_discreto] = max([
+                    self.Q.get((estado_discreto, a), 0) 
+                    for a in range(env.action_space.n)
+                ])
+                
+                # Transição
+                estado = proximo_estado
+                estado_discreto = proximo_estado_discreto
+                
+                episode_return += recompensa
+            
+            self.episode_returns.append(episode_return)
+            self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
+            
+            if (episode + 1) % 10 == 0:
+                print(f"Episódio {episode + 1}/{num_episodes}, "
+                      f"Retorno: {episode_return:.4f}, "
+                      f"Epsilon: {self.epsilon:.4f}")
+        
+        return self.V, self.Q, self.episode_returns
+    
+    def _choose_action(self, estado, env):
+        return politica_epsilon_greedy(estado, self.epsilon, self.Q, env)            
 
 # ========================= EXECUÇÃO PRINCIPAL =========================
 def main():
@@ -385,7 +518,7 @@ def main():
     # Cria ambiente
     env = gym.make(
         "TradingEnv",
-        name="BTCUSD",
+        name="BNBUSD",
         df=df,
         positions=[-1, 0, 0.25, 0.5, 0.75, 1],
         trading_fees=0.001/100,
@@ -431,6 +564,30 @@ def main():
     )
     V_sarsa, Q_sarsa, returns_sarsa = sarsa_agent.run(env, config.NUM_EPISODES)
     results['SARSA'] = {'V': V_sarsa, 'Q': Q_sarsa, 'returns': returns_sarsa}
+    
+    # Q-Learning (NOVO)
+    print("\n" + "="*50)
+    qlearning_agent = QLearningAgent(
+        alpha=config.ALPHA,
+        gamma=config.GAMMA,
+        epsilon=config.EPSILON,
+        epsilon_decay=config.EPSILON_DECAY,
+        min_epsilon=config.MIN_EPSILON
+    )
+    V_ql, Q_ql, returns_ql = qlearning_agent.run(env, config.NUM_EPISODES)
+    results['Q-Learning'] = {'V': V_ql, 'Q': Q_ql, 'returns': returns_ql}
+    
+    # DQN (NOVO)
+    print("\n" + "="*50)
+    dqn_agent = DQNAgent(
+        alpha=0.001,  # Alpha menor para DQN
+        gamma=config.GAMMA,
+        epsilon=config.EPSILON,
+        epsilon_decay=config.EPSILON_DECAY,
+        min_epsilon=config.MIN_EPSILON
+    )
+    V_dqn, Q_dqn, returns_dqn = dqn_agent.run(env, config.NUM_EPISODES)
+    results['DQN'] = {'V': V_dqn, 'Q': Q_dqn, 'returns': returns_dqn}
     
     # Teste final com Policy Improvement
     print("\n=== TESTE FINAL COM POLICY IMPROVEMENT ===")
