@@ -592,7 +592,7 @@ def main():
     # Teste final com Policy Improvement
     print("\n=== TESTE FINAL COM POLICY IMPROVEMENT ===")
     test_policy_improvement(env, learned_policy)
-    
+    env.save_for_render(dir="render_logs")
     # Visualizações
     plot_results(results, mc_policy_agent)
     
