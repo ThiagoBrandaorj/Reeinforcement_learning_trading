@@ -17,7 +17,7 @@ import ccxt
 # ========================= CONFIGURAÇÕES =========================
 class Config:
     GAMMA = 0.99
-    NUM_EPISODES = 1000
+    NUM_EPISODES = 100
     ALPHA = 0.1
     EPSILON = 0.1
     EPSILON_DECAY = 0.995
@@ -557,4 +557,4 @@ def run_multiple_executions(n_runs=10):
 
 # ========================= EXECUÇÃO =========================
 if __name__ == "__main__":
-    main()
+    run_multiple_executions(10)
