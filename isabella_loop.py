@@ -17,7 +17,7 @@ import ccxt
 # ========================= CONFIGURAÇÕES =========================
 class Config:
     GAMMA = 0.99
-    NUM_EPISODES = 1000
+    NUM_EPISODES = 100
     ALPHA = 0.1
     EPSILON = 0.1
     EPSILON_DECAY = 0.995
@@ -432,30 +432,6 @@ class QLearningAgent:
     def _choose(self, estado, env):
         return politica_epsilon_greedy(estado, self.epsilon, self.Q, env)
 
-# ========================= TESTE FINAL PARA RENDER =========================
-def test_sarsa_with_render(env, sarsa_agent):
-    print("\n🎥 EXECUTANDO SARSA FINAL PARA RENDER...")
-
-    obs, info = env.reset()
-    done = False
-    total_reward = 0
-
-    while not done:
-        s_disc = discretize(obs)
-
-        # Ação gulosa (sem exploração)
-        a = politica_gulosa(obs, sarsa_agent.Q, env)
-
-        obs, r, term, trunc, info = env.step(a)
-        done = term or trunc
-        total_reward += r
-
-    print(f"✅ Episódio renderizado - Retorno SARSA: {total_reward:.4f}")
-
-    # SALVA LOG PARA RENDER
-    env.save_for_render(dir="render_logs")
-
-
 # ========================= MAIN =========================
 def main(return_results=False):
     print("⚡ Modo rápido" if return_results else "🎯 Execução com gráficos")
@@ -505,9 +481,6 @@ def main(return_results=False):
     )
     V_sa, Q_sa, ret_sa = sarsa.run(env, config.NUM_EPISODES)
     results["SARSA"] = {"V":V_sa,"Q":Q_sa,"returns":ret_sa}
-    
-    if not return_results:
-        test_sarsa_with_render(env, sarsa)
 
     qlearn = QLearningAgent(
         config.ALPHA, config.GAMMA,
@@ -557,4 +530,4 @@ def run_multiple_executions(n_runs=10):
 
 # ========================= EXECUÇÃO =========================
 if __name__ == "__main__":
-    main()
+    run_multiple_executions(10)
